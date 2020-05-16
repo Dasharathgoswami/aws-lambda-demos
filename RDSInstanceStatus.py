@@ -8,10 +8,19 @@
 
 import boto3
 
+#aws iam user credentials
+aws_key = ''
+aws_secret = ''
+
+#db tags 
 Key = 'db-type'
 Value = 'customer-replication'
 
-client = boto3.client('rds')
+client = boto3.client(
+    'rds',
+    aws_access_key_id = aws_key,
+    aws_secret_access_key = aws_secret 
+)
 response = client.describe_db_instances()
 
 for resp in response['DBInstances']:
