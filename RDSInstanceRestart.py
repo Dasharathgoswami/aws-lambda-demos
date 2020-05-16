@@ -1,31 +1,33 @@
-# this script will restart rds instance.
-# you can modifie to start and stop also use cloudwatch event to start and stop on scheduler.
-# detailed tutorial on this link : https://dzone.com/articles/create-an-aws-lambda-function-to-stop-and-start-an
-import sys
-import botocore
+
+
+#   Author: Dashrath Goswami
+#   Date:   16th May 2020
+#   Detail: Stop  start and restart RDS instances based on Tags
+#   Note:   Aurora databases are currently not supported for shutdown and startup methods.
+#http://www.mrmarkyoung.com/oracle/2017/12/19/how-to-stop-and-start-rds-instance-in-aws-using-python/
+
 import boto3
-from botocore.exceptions import ClientError
-def lambda_handler(event, context):
-    rds = boto3.client('rds')
-    lambdaFunc = boto3.client('lambda')
-    print 'Trying to get Environment variable'
-    try:
-        funcResponse = lambdaFunc.get_function_configuration(
-            FunctionName='RDSInstanceStop'
-        )
-        DBinstance = funcResponse['Environment']['Variables']['DBInstanceName']
-        print 'Restarting RDS service for DBInstance : ' + DBinstance
-    except ClientError as e:
-        print(e)    
-    try:
-        response = rds.reboot_db_instance(
-            DBInstanceIdentifier=DBinstance
-        )
-        print 'Success :: ' 
-        return response
-    except ClientError as e:
-        print(e)    
-    return
-    {
-        'message' : "Script execution completed. See Cloudwatch logs for complete output"
-    }
+
+Key = 'db-type'
+Value = 'customer-replication'
+
+client = boto3.client('rds')
+response = client.describe_db_instances()
+
+for resp in response['DBInstances']:
+   db_instance_arn = resp['DBInstanceArn']
+
+
+   response = client.list_tags_for_resource(ResourceName=db_instance_arn)
+   for tags in response['TagList']:
+       if tags['Key'] == str(Key) and tags['Value'] == str(Value):
+           status = resp['DBInstanceStatus']
+           InstanceID = resp['DBInstanceIdentifier']
+           print(InstanceID)
+           #print(status)
+           if status == 'available':
+               print("Restarting RDS %s " % InstanceID)
+               client.reboot_db_instance(DBInstanceIdentifier= InstanceID)
+               #print ("Do something with it : %s" % db_instance_arn)
+           else:
+                print("The database is in" + status + " status!")
